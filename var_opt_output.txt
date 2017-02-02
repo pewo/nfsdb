@@ -1,0 +1,19 @@
+#
+# Created by ./nfsdb.pl on d430
+# Timestamp Fri Feb  3 00:55:22 2017
+#
+%OUPUT=JSON
+%VERSION=1
+%TYPE=NFS
+%DIR=/var/opt
+{"size":24576,"files":6,"path":"/var/opt/thinlinc/utils","short":"/thinlinc/utils"}
+{"files":2,"path":"/var/opt/thinlinc/utils/tl-nds","size":8192,"short":"/thinlinc/utils/tl-nds"}
+{"short":"/thinlinc/statistics","path":"/var/opt/thinlinc/statistics","files":1,"size":59812}
+{"path":"/var","files":24,"size":150979,"short":"/var"}
+{"short":"/","size":150979,"path":"/","files":24}
+{"files":1,"path":"/var/opt/thinlinc/utils/tl-ldap-certalias","size":4096,"short":"/thinlinc/utils/tl-ldap-certalias"}
+{"short":"/thinlinc","size":142787,"files":22,"path":"/var/opt/thinlinc"}
+{"short":"","path":"/var/opt","files":24,"size":150979}
+{"path":"/var/opt/thinlinc/sessions","files":12,"size":46111,"short":"/thinlinc/sessions"}
+{"files":9,"path":"/var/opt/thinlinc/sessions/peter/1.ended","size":37912,"short":"/thinlinc/sessions/peter/1.ended"}
+{"short":"/thinlinc/sessions/peter","path":"/var/opt/thinlinc/sessions/peter","files":11,"size":42015}

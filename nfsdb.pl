@@ -3,7 +3,22 @@
 use strict;
 use File::Find ();
 use File::Path qw(make_path);
+use File::Basename;
+use Data::Dumper;
 use English;
+use Sys::Hostname;
+use JSON; # imports encode_json, decode_json, to_json and from_json.
+
+
+my($host) = hostname;
+my($localtime) = scalar localtime(time);
+
+my($comment) = "";
+$comment .= "#\n";
+$comment .= "# Created by $0 on $host\n";
+$comment .= "# Timestamp $localtime\n";
+$comment .= "#\n";
+
 
 # Set the variable $File::Find::dont_use_nlink if you're using AFS,
 # since AFS cheats.
@@ -15,66 +30,66 @@ use vars qw/*name *dir *prune/;
 *prune  = *File::Find::prune;
 
 my($file);
-my($age) = undef;
-my($diff) = undef;
 my($now) = time;
-my($outputbase) = "/var/tmp/findnew";
-
+my(%res);
 sub wanted {
 
 	my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
 	return unless ( $mtime );
-
-	$now = time;
-	if ( -f _ && $mtime > $age ) {
-		$file = $name;
-		$age = $mtime;
-		$diff = $now - $age ;
-		print "File: $file, age: $age, diff: $diff, localtime: " . localtime($age) . "\n";
-	}
+	#print "dir: " . $dir . " file: " . $name . "\n";
+	$res{$dir}{size}+=$size;
+	$res{$dir}{time}=time;
+	$res{$dir}{files}++;
 }
 
-if ( ! -d $outputbase ) {
-	make_path($outputbase, { verbose => 1, mode => 0700, });
-}
-if ( ! -d $outputbase ) {
-	chdir($outputbase);
-	die "chdir($outputbase): $!\n";
-}
-	
-my($dir);
 my($i) = 0;
-my(@dirs) = ();
-foreach $dir ( @ARGV ) {
-	next unless ( $dir );
-	next unless ( -d $dir );
-	push(@dirs,$dir);
+my($subdir) = shift(@ARGV);
+if ( $subdir ) {
+	$i++ if ( -d $subdir );
 }
-
-foreach $dir ( @dirs ) {
-	my($filename) = $dir;
-	$filename =~ s/\W/_/g;
-	$filename = $outputbase . "/findnew" . $filename . ".log";
-	my($runtime) = time - $BASETIME;
-	print "\n*** $i/$#dirs logfile for directory $dir is $filename (Runtime is $runtime seconds) ***\n";
-	sleep 1;
-	$age = 0;
-	File::Find::find({wanted => \&wanted}, $dir);
-
-	unlink($filename);
-	unless ( open(LOG,">$filename") ) {
-		die "Cant write to $filename: $!\n";
-	}
-
-	my($days) = time - $age;
-	$days = $days / ( 60 * 60 * 24 );
-
-	print LOG sprintf("%s Days %d\tLocaltime %s\tRuntime %s\tFile %s (%s)\n",$age, $days, scalar localtime($age), $runtime, $file,$dir);
-	close(LOG);
-	
-	$i++;
-}
-
 die "Usage: $0 <directory>\n" unless ( $i ) ;
+
+print $comment;
+
+my($filename) = $subdir;
+$filename =~ s/\W/_/g;
+my($runtime) = time - $BASETIME;
+sleep 1;
+File::Find::find({wanted => \&wanted}, $subdir);
+
+$i = 0;
+my(%sum);
+my($path);
+foreach $path ( keys %res ) {
+	#print "Dir: $path\n";
+	my($dirpath) = "";
+	foreach ( split(/\//,$path) ) {
+		$dirpath .= "/$_";
+		$dirpath =~ s/^\/*/\//;
+		$sum{$dirpath}{size}+=$res{$path}{size};
+		$sum{$dirpath}{files}+=$res{$path}{files};
+		$sum{$dirpath}{path}=$dirpath;
+		my($shortpath) = $dirpath;
+		$shortpath =~ s/^$subdir//;
+		$sum{$dirpath}{short}=$shortpath;
+		
+	}
+	last if ( $i++ > 10 );
+}
+
+my($meta) = "";
+$meta .= "%OUPUT=JSON\n";
+$meta .= "%VERSION=1\n";
+$meta .= "%TYPE=NFS\n";
+$meta .= "%DIR=$subdir\n";
+print $meta;
+
+foreach $subdir ( keys %sum ) {
+	my($hp) = $sum{$subdir};
+	my($json) = encode_json $hp;
+	print "$json\n";
+}
+#print Dumper(\%sum);
+
 
 
