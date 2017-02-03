@@ -9,9 +9,24 @@ use English;
 use Sys::Hostname;
 use JSON; # imports encode_json, decode_json, to_json and from_json.
 
-
 my($host) = hostname;
 my($localtime) = scalar localtime(time);
+my($maxpath) = 5;
+sub maxpath($) {
+	my($path) = shift;
+	my(@arr) = split(/\//,$path);
+	if ( $#arr >= $maxpath ) {
+		$path = "";
+		my($i) = $maxpath;
+		while ( $i-- > 0 ) {
+			$path .= "/" . shift(@arr);
+		}
+		#$path = join("/",$arr[0],$arr[1],$arr[2], $arr[3]);
+		$path =~ s/^\/\//\//;
+	}
+	return($path);
+}
+
 
 my($comment) = "";
 $comment .= "#\n";
@@ -35,11 +50,17 @@ my(%res);
 sub wanted {
 
 	my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
+	if ( /^\.snapshot\z/s ) {
+		$File::Find::prune = 1;
+		return;
+	}
+
 	return unless ( $mtime );
 	#print "dir: " . $dir . " file: " . $name . "\n";
-	$res{$dir}{size}+=$size;
-	$res{$dir}{time}=time;
-	$res{$dir}{files}++;
+	my($maxpath) = maxpath($dir);
+	$res{$maxpath}{size}+=$size;
+	$res{$maxpath}{time}=time;
+	$res{$maxpath}{files}++;
 }
 
 my($i) = 0;
@@ -68,13 +89,13 @@ foreach $path ( keys %res ) {
 		$dirpath =~ s/^\/*/\//;
 		$sum{$dirpath}{size}+=$res{$path}{size};
 		$sum{$dirpath}{files}+=$res{$path}{files};
-		$sum{$dirpath}{path}=$dirpath;
+		#$sum{$dirpath}{path}=$dirpath;
 		my($shortpath) = $dirpath;
 		$shortpath =~ s/^$subdir//;
-		$sum{$dirpath}{short}=$shortpath;
+		$sum{$dirpath}{path}=$shortpath;
 		
 	}
-	last if ( $i++ > 10 );
+	#last if ( $i++ > 10 );
 }
 
 my($meta) = "";
@@ -84,8 +105,11 @@ $meta .= "%TYPE=NFS\n";
 $meta .= "%DIR=$subdir\n";
 print $meta;
 
-foreach $subdir ( keys %sum ) {
-	my($hp) = $sum{$subdir};
+my($sumdir);
+foreach $sumdir ( keys %sum ) {
+	#print "sumdir=[$sumdir] subdir=$subdir\n";
+	next unless ( $sumdir =~ /^$subdir/ );
+	my($hp) = $sum{$sumdir};
 	my($json) = encode_json $hp;
 	print "$json\n";
 }
